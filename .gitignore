@@ -3,3 +3,19 @@ dist
 .DS_Store
 .npm-cache
 logs
+
+# 大体积素材：视频和设计源文件不进仓库（视频放外部存储）
+*.mp4
+*.mov
+*.m4v
+*.webm
+*.mkv
+*.avi
+*.psd
+*.psb
+*.ai
+*.aep
+*.prproj
+*.zip
+.env*
+.vercel
