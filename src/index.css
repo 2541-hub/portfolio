@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 原文件使用的 scrollbar-hide 不是 Tailwind 内置类，这里补上实际效果 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
