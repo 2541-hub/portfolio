@@ -1,51 +1,25 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import Lenis from '@studio-freight/lenis';
 import gsap from 'gsap';
+import works from './works.json';
 
 const FILM_GRAIN_URL = `data:image/svg+xml,${encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`
 )}`;
 
-const ARCHIVE_FRAGMENTS = [
-  { id: 'f1', src: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=600&q=80', w: 320 },
-  { id: 'f2', src: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80', w: 280 },
-  { id: 'f3', src: 'https://images.unsplash.com/photo-1502657877623-f66bf489d236?auto=format&fit=crop&w=600&q=80', w: 380 },
-  { id: 'f4', src: 'https://images.unsplash.com/photo-1605806616949-1e87b487cb2a?auto=format&fit=crop&w=600&q=80', w: 300 },
-  { id: 'f5', src: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=600&q=80', w: 350 },
-  { id: 'f6', src: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80', w: 320 },
-  { id: 'f7', src: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=600&q=80', w: 290 },
-  { id: 'f8', src: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80', w: 360 },
-  { id: 'f9', src: 'https://images.unsplash.com/photo-1509460913899-515f1df34fea?auto=format&fit=crop&w=600&q=80', w: 310 },
-  { id: 'f10', src: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80', w: 340 },
-  { id: 'f11', src: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=600&q=80', w: 330 },
-  { id: 'f12', src: 'https://images.unsplash.com/photo-1610298717805-4f7f2b18417c?auto=format&fit=crop&w=600&q=80', w: 280 },
-  { id: 'f13', src: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=600&q=80', w: 370 },
-  { id: 'f14', src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80', w: 300 },
-  { id: 'f15', src: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&w=600&q=80', w: 390 },
-];
+// 所有作品数据都在 src/works.json 里维护，这里只做读取和整理，不再写死内容
+const ARCHIVE_FRAGMENTS = works.archive.map((frag, i) => ({ id: `f${i + 1}`, ...frag }));
 
-const CATEGORIES = [
-  { id: 'VISUAL', name: 'VISUAL / 视觉影像', preview: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80' },
-  { id: 'FILM', name: 'FILM / 动态叙事', preview: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&w=800&q=80' },
-  { id: 'CONSTRUCT', name: 'CONSTRUCT / 实体构件', preview: 'https://images.unsplash.com/photo-1606722590583-6951b5ea92ad?auto=format&fit=crop&w=800&q=80' }
-];
+const CATEGORIES = works.categories;
 
-const PROJECTS = {
-  VISUAL: [
-    { id: 'p1', title: 'OBSERVER', type: 'DIGITAL SCULPT / 2024', thumb: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80', layout: 'horizontal' },
-    { id: 'p2', title: 'SILENCE', type: 'PHOTOGRAPHY / 2023', thumb: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=800&q=80', layout: 'horizontal' },
-    { id: 'p3', title: 'ECHO', type: 'FASHION / 2023', thumb: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80', layout: 'horizontal' },
-    { id: 'p4', title: 'VOID', type: 'PORTRAIT / 2022', thumb: 'https://images.unsplash.com/photo-1509460913899-515f1df34fea?auto=format&fit=crop&w=800&q=80', layout: 'horizontal' }
-  ],
-  FILM: [
-    { id: 'p5', title: 'VOID WALKER', type: 'LEVEL DESIGN / 2024', thumb: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80', layout: 'vertical' },
-    { id: 'p6', title: 'NEON PROTOCOL', type: 'CONCEPT ART / 2022', thumb: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=1200&q=80', layout: 'vertical' }
-  ],
-  CONSTRUCT: [
-    { id: 'p7', title: 'STRUCTURE I', type: '3D PRINT / 2023', thumb: 'https://images.unsplash.com/photo-1610298717805-4f7f2b18417c?auto=format&fit=crop&w=800&q=80', layout: 'horizontal' },
-    { id: 'p8', title: 'MATTER', type: 'CERAMICS / 2022', thumb: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=800&q=80', layout: 'horizontal' }
-  ]
-};
+// 把平铺的作品列表按 category 分组，保持原来 PROJECTS[分类id] 的读取方式不变
+const PROJECTS = works.projects.reduce((groups, proj) => {
+  (groups[proj.category] ||= []).push(proj);
+  return groups;
+}, {});
+
+// 按后缀判断 media 里的条目是视频还是图片
+const isVideo = (src) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(src);
 
 const DraggableFragment = ({ data, highestZ, setHighestZ, parallaxRef }) => {
   const [pos, setPos] = useState({ x: data.initX || 0, y: data.initY || 0 });
@@ -200,7 +174,7 @@ const ViewIndex = ({ onSelectCategory }) => {
 
 const ViewProjectList = ({ categoryId, onSelectProject, onBack }) => {
   const projects = PROJECTS[categoryId] || [];
-  const isWidescreen = categoryId === 'FILM';
+  const isWidescreen = !!CATEGORIES.find((c) => c.id === categoryId)?.wide;
   const gridContainerClass = isWidescreen ? "grid grid-cols-1 gap-y-16 max-w-7xl mx-auto" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-4 max-w-7xl mx-auto";
   const imageAspectClass = isWidescreen ? "aspect-video" : "aspect-square";
   return (
@@ -241,12 +215,19 @@ const ViewProjectDetail = ({ project, onBack }) => {
     }
   };
 
+  // media 为空时沿用原来的占位块，作品素材还没整理好也不会变成空白页
+  const media = project.media || [];
+  const description = project.description ? (
+    <p className="mt-4 max-w-sm font-mono text-[10px] text-[#555] tracking-widest leading-loose whitespace-pre-line">{project.description}</p>
+  ) : null;
+
   if (project.layout === 'horizontal') {
     return (
       <div className="w-full h-full relative bg-[#0a0a0a] overflow-hidden">
         {/* 绝对定位的导航，定死在左上角，绝对不占用中间布局高度 */}
         <div className="absolute top-12 left-[12vw] z-50">
             <button onClick={onBack} className="font-mono text-[8px] tracking-[0.2em] text-[#555] hover:text-[#fff] transition-colors uppercase">{'< BACK'}</button>
+            {description}
         </div>
         
         {/* 将 gap-12 缩小为 gap-4，缩小模块间隙贴近参考图 */}
@@ -256,29 +237,57 @@ const ViewProjectDetail = ({ project, onBack }) => {
           className="w-full h-full flex flex-nowrap items-center gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide cursor-grab active:cursor-grabbing" 
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-[70vh] aspect-[9/16] bg-[#111] flex-shrink-0 flex items-center justify-center border border-[#1a1a1a] shadow-2xl">
-              <span className="text-[#333] font-mono text-[10px] uppercase">SEQUENCE {i}</span>
-            </div>
-          ))}
+          {media.length > 0
+            ? media.map((src, i) => (
+              <div key={i} className="h-[70vh] aspect-[9/16] bg-[#111] flex-shrink-0 flex items-center justify-center border border-[#1a1a1a] shadow-2xl overflow-hidden">
+                {isVideo(src)
+                  ? <video src={src} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                  : <img src={src} alt={`${project.title} ${i + 1}`} draggable={false} className="w-full h-full object-cover" />}
+              </div>
+            ))
+            : [1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-[70vh] aspect-[9/16] bg-[#111] flex-shrink-0 flex items-center justify-center border border-[#1a1a1a] shadow-2xl">
+                <span className="text-[#333] font-mono text-[10px] uppercase">SEQUENCE {i}</span>
+              </div>
+            ))}
         </div>
       </div>
     );
   }
 
+  // 宽屏主区域放 media 里的第一个视频（没有视频就放第一项），其余放进下方网格
+  const heroIndex = Math.max(0, media.findIndex(isVideo));
+  const hero = media[heroIndex];
+  const details = media.filter((_, i) => i !== heroIndex);
+
   return (
     <div className="w-full h-full overflow-y-auto px-8 md:px-32 py-24 bg-[#0a0a0a]">
-      <button onClick={onBack} className="mb-16 font-mono text-[10px] text-[#555] hover:text-[#fff] transition-colors">{'< BACK'}</button>
+      <div className="mb-16">
+        <button onClick={onBack} className="font-mono text-[10px] text-[#555] hover:text-[#fff] transition-colors">{'< BACK'}</button>
+        {description}
+      </div>
       {/* 将 mb-12 改为 mb-6，与下方 grid 的 gap-6 保持一致的间距 */}
-      <div className="w-full aspect-video bg-[#111] border border-[#1a1a1a] flex items-center justify-center mb-6">
-        <span className="text-[#333] font-mono text-sm">VIDEO_AREA</span>
+      <div className="w-full aspect-video bg-[#111] border border-[#1a1a1a] flex items-center justify-center mb-6 overflow-hidden">
+        {!hero
+          ? <span className="text-[#333] font-mono text-sm">VIDEO_AREA</span>
+          : isVideo(hero)
+            ? <video src={hero} poster={project.poster} className="w-full h-full object-cover" controls playsInline />
+            : <img src={hero} alt={project.title} className="w-full h-full object-cover" />}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[1, 2, 3].map((i) => (
+        {media.length > 0
+          ? details.map((src, i) => (
+            <div key={i} className="aspect-[3/4] bg-[#111] border border-[#1a1a1a] flex items-center justify-center overflow-hidden">
+              {isVideo(src)
+                ? <video src={src} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                : <img src={src} alt={`${project.title} ${i + 1}`} className="w-full h-full object-cover" />}
+            </div>
+          ))
+          : [1, 2, 3].map((i) => (
             <div key={i} className="aspect-[3/4] bg-[#111] border border-[#1a1a1a] flex items-center justify-center">
                 <span className="text-[#333] font-mono text-xs">DETAIL_{i}</span>
             </div>
-        ))}
+          ))}
       </div>
     </div>
   );
