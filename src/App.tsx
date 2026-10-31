@@ -12,9 +12,15 @@ const ARCHIVE_FRAGMENTS = works.archive.map((frag, i) => ({ id: `f${i + 1}`, ...
 
 const CATEGORIES = works.categories;
 
-// 把平铺的作品列表按 category 分组，保持原来 PROJECTS[分类id] 的读取方式不变
-const PROJECTS = works.projects.reduce((groups, proj) => {
-  (groups[proj.category] ||= []).push(proj);
+// 把平铺的作品列表按 category 分组，保持原来 PROJECTS[分类id] 的读取方式不变。
+// 系列没写 layout 时沿用所属分类的模板，没写 id 时按位置自动生成
+const PROJECTS = works.projects.reduce((groups, proj, i) => {
+  const category = CATEGORIES.find((c) => c.id === proj.category);
+  (groups[proj.category] ||= []).push({
+    ...proj,
+    id: proj.id || `series-${i}`,
+    layout: proj.layout || category?.layout || 'horizontal',
+  });
   return groups;
 }, {});
 
@@ -54,12 +60,12 @@ const DraggableFragment = ({ data, highestZ, setHighestZ, parallaxRef }) => {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      className={`absolute select-none transition-[filter,box-shadow] duration-150 ${isDragging ? 'cursor-grabbing shadow-2xl brightness-110' : 'cursor-grab shadow-xl brightness-75 hover:brightness-100'}`}
+      className={`absolute select-none transition-[filter,box-shadow] duration-150 ${isDragging ? 'cursor-grabbing shadow-2xl brightness-110' : 'cursor-grab shadow-xl saturate-[.6] saturate-[.55] brightness-90 hover:saturate-100 hover:brightness-110 hover:brightness-100'}`}
       style={{ transform: `translate3d(${pos.x}px, ${pos.y}px, 0) scale(${isDragging ? 1.05 : 1})`, width: `${data.w}px`, zIndex: zIndex, touchAction: 'none' }}
     >
       {/* 视差深度层：与拖拽的 outer transform 相互独立，滚动时按 scrollSpeedFactor 单独位移 */}
       <div ref={parallaxRef} style={{ willChange: 'transform' }}>
-        <img src={data.src} alt="fragment" className="w-full h-auto block pointer-events-none grayscale hover:grayscale-0 transition-[filter] duration-500" />
+        <img src={data.src} alt="fragment" className="w-full h-auto block ppointer-events-noneointer-events-none" />
       </div>
     </div>
   );
@@ -217,6 +223,7 @@ const ViewProjectDetail = ({ project, onBack }) => {
 
   // media 为空时沿用原来的占位块，作品素材还没整理好也不会变成空白页
   const media = project.media || [];
+  const naturalFit = project.fit === 'natural';
   const description = project.description ? (
     <p className="mt-4 max-w-sm font-mono text-[10px] text-[#555] tracking-widest leading-loose whitespace-pre-line">{project.description}</p>
   ) : null;
@@ -239,10 +246,11 @@ const ViewProjectDetail = ({ project, onBack }) => {
         >
           {media.length > 0
             ? media.map((src, i) => (
-              <div key={i} className="h-[70vh] aspect-[9/16] bg-[#111] flex-shrink-0 flex items-center justify-center border border-[#1a1a1a] shadow-2xl overflow-hidden">
+              // fit: "natural" 的系列保持 70vh 高度，宽度跟随每张图自身比例，完整显示不裁切
+              <div key={i} className={`h-[70vh] ${naturalFit ? '' : 'aspect-[9/16] '}bg-[#111] flex-shrink-0 flex items-center justify-center border border-[#1a1a1a] shadow-2xl overflow-hidden`}>
                 {isVideo(src)
-                  ? <video src={src} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                  : <img src={src} alt={`${project.title} ${i + 1}`} draggable={false} className="w-full h-full object-cover" />}
+                  ? <video src={src} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} autoPlay muted loop playsInline />
+                  : <img src={src} alt={`${project.title} ${i + 1}`} draggable={false} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} />}
               </div>
             ))
             : [1, 2, 3, 4, 5, 6].map((i) => (

@@ -1,11 +1,33 @@
 {
   "categories": [
-    { "id": "VISUAL", "name": "VISUAL / 视觉影像", "preview": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80" },
-    { "id": "FILM", "name": "FILM / 动态叙事", "preview": "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&w=800&q=80", "wide": true },
-    { "id": "CONSTRUCT", "name": "CONSTRUCT / 实体构件", "preview": "https://images.unsplash.com/photo-1606722590583-6951b5ea92ad?auto=format&fit=crop&w=800&q=80" }
+    { "id": "VISUAL", "name": "VISUAL / 视觉影像", "preview": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80", "layout": "horizontal" },
+    { "id": "FILM", "name": "FILM / 动态叙事", "preview": "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&w=800&q=80", "wide": true, "layout": "vertical" },
+    { "id": "CONSTRUCT", "name": "CONSTRUCT / 实体构件", "preview": "https://images.unsplash.com/photo-1606722590583-6951b5ea92ad?auto=format&fit=crop&w=800&q=80", "layout": "horizontal" }
   ],
 
   "projects": [
+    {
+      "id": "fragments-handmade",
+      "category": "CONSTRUCT",
+      "title": "FRAGMENTS · HANDMADE",
+      "type": "",
+      "description": "",
+      "thumb": "/works/construct/fragments-handmade/cover.jpg",
+      "layout": "horizontal",
+      "fit": "cover",
+      "media": []
+    },
+    {
+      "category": "VISUAL",
+      "title": "SPRING RHYTHM",
+      "type": "Concept · Design · Post-production · AI-assisted",
+      "description": "",
+      "thumb": "/works/visual/Spring Rhytm/image.png",
+      "fit": "natural",
+      "media": [
+        "/works/visual/Spring Rhytm/image.png"
+      ]
+    },
     {
       "id": "observer",
       "category": "VISUAL",
@@ -69,10 +91,10 @@
     {
       "id": "structure-i",
       "category": "CONSTRUCT",
-      "title": "STRUCTURE I",
+      "title": "OBJECTS",
       "type": "3D PRINT / 2023",
       "description": "",
-      "thumb": "https://images.unsplash.com/photo-1610298717805-4f7f2b18417c?auto=format&fit=crop&w=800&q=80",
+      "thumb": "/works/construct/structure-i/cover.svg",
       "layout": "horizontal",
       "media": []
     },
