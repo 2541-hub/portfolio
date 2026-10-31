@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
@@ -115,6 +115,177 @@ const button: CSSProperties = {
 const ghost: CSSProperties = { ...button, background: 'transparent', color: '#aaa', border: '1px solid #333' };
 const label: CSSProperties = { display: 'block', color: '#888', fontSize: 12, marginBottom: 4 };
 
+const ASPECTS: [string, number][] = [
+  ['1:1 正方形', 1],
+  ['16:9 橫向', 16 / 9],
+  ['4:3 橫向', 4 / 3],
+  ['4:5 直向', 4 / 5],
+  ['3:4 直向', 3 / 4],
+  ['9:16 直向', 9 / 16],
+];
+
+// 裁切視窗：拖動圖片移位置、用滑桿放大縮小，揀好比例，撳「確定」就會輸出裁好嘅圖
+function CropDialog({
+  file,
+  aspect: initialAspect,
+  onDone,
+  onCancel,
+}: {
+  file: File;
+  aspect: number;
+  onDone: (f: File) => void;
+  onCancel: () => void;
+}) {
+  const [url] = useState(() => URL.createObjectURL(file));
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [aspect, setAspect] = useState(initialAspect);
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => {
+      setImg(image);
+      setCenter({ x: image.naturalWidth / 2, y: image.naturalHeight / 2 });
+    };
+    image.onerror = () => onDone(file); // 讀唔到呢張圖（例如 HEIC）就直接用原圖
+    image.src = url;
+    return () => URL.revokeObjectURL(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
+  const BOX_W = 360;
+  const BOX_H = 400;
+  const wide = aspect >= BOX_W / BOX_H;
+  const stageW = wide ? BOX_W : BOX_H * aspect;
+  const stageH = wide ? BOX_W / aspect : BOX_H;
+
+  const nw = img?.naturalWidth || 1;
+  const nh = img?.naturalHeight || 1;
+  const scale = Math.max(stageW / nw, stageH / nh) * zoom;
+  const halfW = stageW / (2 * scale);
+  const halfH = stageH / (2 * scale);
+  const c = {
+    x: Math.min(Math.max(center.x, halfW), nw - halfW),
+    y: Math.min(Math.max(center.y, halfH), nh - halfH),
+  };
+
+  const confirm = async () => {
+    if (!img) return;
+    const sw = stageW / scale;
+    const sh = stageH / scale;
+    const outW = Math.min(2000, Math.round(sw));
+    const outH = Math.round((outW * stageH) / stageW);
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    canvas.getContext('2d')!.drawImage(img, c.x - sw / 2, c.y - sh / 2, sw, sh, 0, 0, outW, outH);
+    const webp: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9));
+    if (webp && webp.type === 'image/webp') {
+      onDone(new File([webp], 'cropped.webp', { type: 'image/webp' }));
+      return;
+    }
+    const jpg: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    onDone(jpg ? new File([jpg], 'cropped.jpg', { type: 'image/jpeg' }) : file);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      <div style={{ ...card, width: 'min(420px, 92vw)', marginBottom: 0, boxSizing: 'border-box' }}>
+        <h2 style={{ fontSize: 16, fontWeight: 400, marginTop: 0 }}>裁切圖片</h2>
+        <div
+          style={{
+            width: stageW,
+            height: stageH,
+            margin: '0 auto 12px',
+            position: 'relative',
+            overflow: 'hidden',
+            background: '#000',
+            touchAction: 'none',
+            cursor: 'grab',
+          }}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            drag.current = { x: e.clientX, y: e.clientY };
+          }}
+          onPointerMove={(e) => {
+            if (!drag.current) return;
+            const dx = e.clientX - drag.current.x;
+            const dy = e.clientY - drag.current.y;
+            drag.current = { x: e.clientX, y: e.clientY };
+            setCenter({ x: c.x - dx / scale, y: c.y - dy / scale });
+          }}
+          onPointerUp={() => (drag.current = null)}
+          onPointerCancel={() => (drag.current = null)}
+        >
+          {img && (
+            <img
+              src={url}
+              alt=""
+              draggable={false}
+              style={{
+                position: 'absolute',
+                left: stageW / 2 - c.x * scale,
+                top: stageH / 2 - c.y * scale,
+                width: nw * scale,
+                height: nh * scale,
+                maxWidth: 'none',
+                pointerEvents: 'none',
+                userSelect: 'none',
+              }}
+            />
+          )}
+        </div>
+        <p style={{ color: '#777', margin: '0 0 8px', fontSize: 12, textAlign: 'center' }}>拖動圖片調整位置</p>
+
+        <label style={label}>放大</label>
+        <input
+          type="range"
+          min={1}
+          max={3}
+          step={0.01}
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          style={{ width: '100%', marginBottom: 12 }}
+        />
+
+        <label style={label}>比例</label>
+        <select style={input} value={aspect} onChange={(e) => setAspect(Number(e.target.value))}>
+          {ASPECTS.map(([name, value]) => (
+            <option key={name} value={value}>
+              {name}
+            </option>
+          ))}
+        </select>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button style={button} onClick={confirm} disabled={!img}>
+            確定
+          </button>
+          <button style={ghost} onClick={() => onDone(file)}>
+            唔裁切，用原圖
+          </button>
+          <button style={ghost} onClick={onCancel}>
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
@@ -125,6 +296,17 @@ export default function Admin() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [cropJob, setCropJob] = useState<{ file: File; aspect: number; resolve: (f: File | null) => void } | null>(null);
+
+  // 彈出裁切視窗，回傳裁好嘅圖；取消就回傳 null。gif、svg 唔裁切。
+  const askCrop = (file: File, aspect: number) =>
+    new Promise<File | null>((resolve) => {
+      if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+        resolve(file);
+        return;
+      }
+      setCropJob({ file, aspect, resolve });
+    });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -218,10 +400,13 @@ export default function Admin() {
   // 直接換封面：只更換封面，唔會加入「作品圖片同影片」
   const uploadCover = async (index: number, files: FileList | null) => {
     if (!files || !files[0] || !content) return;
+    const isWide = !!content.categories.find((cat) => cat.id === content.projects[index].category)?.wide;
+    const picked = await askCrop(files[0], isWide ? 16 / 9 : 1);
+    if (!picked) return;
     setBusy(true);
     setMessage('上傳封面中…');
     try {
-      const url = await uploadFile(files[0], `${content.projects[index].id || 'misc'}/cover`);
+      const url = await uploadFile(picked, `${content.projects[index].id || 'misc'}/cover`);
       edit((c) => {
         c.projects[index].thumb = url;
       });
@@ -235,10 +420,12 @@ export default function Admin() {
   // 換分類嘅預覽圖（INDEX 頁右邊嗰張大圖）
   const uploadCategoryPreview = async (index: number, files: FileList | null) => {
     if (!files || !files[0] || !content) return;
+    const picked = await askCrop(files[0], 4 / 5);
+    if (!picked) return;
     setBusy(true);
     setMessage('上傳預覽圖中…');
     try {
-      const url = await uploadFile(files[0], `categories/${slug(content.categories[index].id)}`);
+      const url = await uploadFile(picked, `categories/${slug(content.categories[index].id)}`);
       edit((c) => {
         c.categories[index].preview = url;
       });
@@ -350,6 +537,21 @@ export default function Admin() {
           {session.user.email}
           {content && !fromCloud && '　目前顯示嘅係 works.json 嘅內容，儲存之後就會改用雲端版本。'}
         </p>
+
+        {cropJob && (
+          <CropDialog
+            file={cropJob.file}
+            aspect={cropJob.aspect}
+            onDone={(f) => {
+              cropJob.resolve(f);
+              setCropJob(null);
+            }}
+            onCancel={() => {
+              cropJob.resolve(null);
+              setCropJob(null);
+            }}
+          />
+        )}
 
         {!content ? (
           <p>讀取內容中…</p>

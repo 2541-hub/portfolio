@@ -1,10 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import works from './works.json';
 import { supabase } from './supabase';
 
-// 網站啟動前先向 Supabase 讀你改過嘅內容，讀到就蓋過 works.json。
+// 網站啟動前先向 Supabase 讀你改過嘅內容，放喺 window.__CLOUD_CONTENT__，App.tsx 會優先用佢。
 // 讀唔到（冇網絡、未儲存過、超過 3 秒）就照用 works.json，網站唔會變白頁。
 async function loadCloudContent() {
   try {
@@ -17,7 +16,7 @@ async function loadCloudContent() {
       .then(({ data }) => (data?.data ?? null) as any);
     const cloud = await Promise.race([request, timeout]);
     if (cloud && cloud.categories && cloud.projects) {
-      Object.assign(works as any, cloud);
+      (window as any).__CLOUD_CONTENT__ = cloud;
     }
   } catch (err) {
     console.warn('讀唔到雲端內容，改用 works.json', err);
