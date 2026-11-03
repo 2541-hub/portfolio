@@ -27,8 +27,11 @@ async function loadCloudContent() {
 function enableLightProtection() {
   const isMedia = (target: EventTarget | null) =>
     target instanceof HTMLImageElement || target instanceof HTMLVideoElement;
+  // 滑鼠位置底下只要有圖或者影片（就算上面蓋住一層半透明遮罩，例如系列封面），都唔出右鍵選單
   document.addEventListener('contextmenu', (e) => {
-    if (isMedia(e.target)) e.preventDefault();
+    if (isMedia(e.target) || document.elementsFromPoint(e.clientX, e.clientY).some(isMedia)) {
+      e.preventDefault();
+    }
   });
   document.addEventListener('dragstart', (e) => {
     if (isMedia(e.target)) e.preventDefault();
