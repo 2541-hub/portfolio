@@ -88,6 +88,25 @@ async function compressImage(file: File): Promise<File> {
   }
 }
 
+// 上傳影片前試播第一格：畫面出到就係瀏覽器播得到；有聲冇畫面（例如 H.265）就會偵測到
+function checkVideoPlayable(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(file);
+    const finish = (ok: boolean) => {
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), 8000);
+    video.preload = 'metadata';
+    video.muted = true;
+    video.onloadeddata = () => finish(video.videoWidth > 0 && video.videoHeight > 0);
+    video.onerror = () => finish(false);
+    video.src = url;
+  });
+}
+
 async function uploadFile(file: File, folder: string): Promise<string> {
   const ready = await compressImage(file);
   const ext = (ready.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -408,7 +427,27 @@ export default function Admin() {
     try {
       const folder = content.projects[index].id || 'misc';
       const urls: string[] = [];
-      for (const file of Array.from(files)) urls.push(await uploadFile(file, folder));
+      for (const file of Array.from(files)) {
+        if (file.type.startsWith('video/') || /\.(mp4|mov|m4v|webm)$/i.test(file.name)) {
+          setMessage(`檢查影片「${file.name}」…`);
+          const playable = await checkVideoPlayable(file);
+          if (
+            !playable &&
+            !window.confirm(
+              `「${file.name}」喺呢個瀏覽器顯示唔到畫面（可能係 H.265 之類嘅編碼，會有聲冇畫面）。\n建議先用 HandBrake 轉成 H.264 嘅 mp4 再上傳。\n\n仍然上傳？`
+            )
+          ) {
+            continue;
+          }
+          setMessage('上傳緊，請等一等…');
+        }
+        urls.push(await uploadFile(file, folder));
+      }
+      if (urls.length === 0) {
+        setMessage('冇上傳任何檔案。');
+        setBusy(false);
+        return;
+      }
       edit((c) => {
         const p = c.projects[index];
         p.media = [...(p.media || []), ...urls];
