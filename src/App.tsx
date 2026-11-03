@@ -28,6 +28,54 @@ const PROJECTS = works.projects.reduce((groups, proj, i) => {
 // 按后缀判断 media 里的条目是视频还是图片
 const isVideo = (src) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(src);
 
+// VISUAL／CONSTRUCT 的横向作品先显示既有封面；进入视口附近时只读取影片 metadata，
+// 使用者点按后才开始下载及播放实际影片。FILM 不会使用这个组件。
+const LazyGalleryVideo = ({ src, poster, className }) => {
+  const videoRef = useRef(null);
+  const [isNearViewport, setIsNearViewport] = useState(false);
+  const [isActivated, setIsActivated] = useState(false);
+  const shouldLoadMetadata = isNearViewport || isActivated;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNearViewport(entry.isIntersecting),
+      { rootMargin: '0px 100%' }
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!isActivated || !video) return;
+
+    const play = () => video.play().catch(() => undefined);
+    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      play();
+      return;
+    }
+    video.addEventListener('canplay', play, { once: true });
+    return () => video.removeEventListener('canplay', play);
+  }, [isActivated, shouldLoadMetadata]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={shouldLoadMetadata ? src : undefined}
+      poster={poster}
+      className={className}
+      muted
+      loop
+      playsInline
+      preload={shouldLoadMetadata ? 'metadata' : 'none'}
+      onClick={() => setIsActivated(true)}
+    />
+  );
+};
+
 const DraggableFragment = ({ data, highestZ, setHighestZ, parallaxRef }) => {
   const [pos, setPos] = useState({ x: data.initX || 0, y: data.initY || 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -225,6 +273,7 @@ const ViewProjectDetail = ({ project, onBack }) => {
   // media 为空时沿用原来的占位块，作品素材还没整理好也不会变成空白页
   const media = project.media || [];
   const naturalFit = project.fit === 'natural';
+  const useDeferredGalleryVideo = project.category === 'VISUAL' || project.category === 'CONSTRUCT';
   const description = project.description ? (
     <p className="mt-4 max-w-sm font-mono text-[10px] text-[#555] tracking-widest leading-loose whitespace-pre-line">{project.description}</p>
   ) : null;
@@ -250,7 +299,9 @@ const ViewProjectDetail = ({ project, onBack }) => {
               // fit: "natural" 的系列保持 70vh 高度，宽度跟随每张图自身比例，完整显示不裁切
               <div key={i} className={`h-[70vh] ${naturalFit ? '' : 'aspect-[9/16] '}bg-[#111] flex-shrink-0 flex items-center justify-center border border-[#1a1a1a] shadow-2xl overflow-hidden`}>
                 {isVideo(src)
-                  ? <video src={src} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} autoPlay muted loop playsInline />
+                  ? useDeferredGalleryVideo
+                    ? <LazyGalleryVideo src={src} poster={project.poster || project.thumb} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} />
+                    : <video src={src} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} autoPlay muted loop playsInline />
                   : <img src={src} alt={`${project.title} ${i + 1}`} draggable={false} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} />}
               </div>
             ))
