@@ -23,6 +23,18 @@ async function loadCloudContent() {
   }
 }
 
+// 輕量防護：圖片同影片唔可以拖走、右鍵唔出「另存」。只擋隨手另存，擋唔到截圖。
+function enableLightProtection() {
+  const isMedia = (target: EventTarget | null) =>
+    target instanceof HTMLImageElement || target instanceof HTMLVideoElement;
+  document.addEventListener('contextmenu', (e) => {
+    if (isMedia(e.target)) e.preventDefault();
+  });
+  document.addEventListener('dragstart', (e) => {
+    if (isMedia(e.target)) e.preventDefault();
+  });
+}
+
 async function start() {
   const root = createRoot(document.getElementById('root')!);
 
@@ -37,6 +49,7 @@ async function start() {
     return;
   }
 
+  enableLightProtection(); // 只喺主網站開，管理頁唔受影響
   await loadCloudContent();
   const { default: App } = await import('./App');
   root.render(

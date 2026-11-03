@@ -892,7 +892,7 @@ export default function Admin() {
                   {(p.media || []).map((src, m) => (
                     <div key={src + m} style={{ width: 120 }}>
                       {isVideo(src) ? (
-                        <video src={src} muted style={{ width: 120, height: 120, objectFit: 'cover', background: '#000' }} />
+                        <video src={`${src}#t=0.1`} muted playsInline preload="metadata" style={{ width: 120, height: 120, objectFit: 'cover', background: '#000' }} />
                       ) : (
                         <img src={src} alt="" style={{ width: 120, height: 120, objectFit: 'cover', background: '#000' }} />
                       )}
@@ -919,6 +919,9 @@ export default function Admin() {
                         >
                           →
                         </button>
+                        <a href={src} target="_blank" rel="noreferrer" style={{ ...mini, textDecoration: 'none' }}>
+                          開啟
+                        </a>
                         {!isVideo(src) && (
                           <button
                             style={{ ...ghost, padding: '4px 6px', fontSize: 12 }}
