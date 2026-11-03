@@ -28,29 +28,66 @@ const PROJECTS = works.projects.reduce((groups, proj, i) => {
 // 按后缀判断 media 里的条目是视频还是图片
 const isVideo = (src) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(src);
 
-// VISUAL／CONSTRUCT 的横向作品先显示既有封面；进入视口附近时只读取影片 metadata，
-// 使用者点按后才开始下载及播放实际影片。FILM 不会使用这个组件。
-const LazyGalleryVideo = ({ src, poster, className }) => {
+const VIDEO_PRELOAD_MARGIN = '0px 150%';
+const MINIMUM_PLAYBACK_MS = 3_000;
+
+// VISUAL／CONSTRUCT 的横向作品在接近视口時預取 metadata，進入播放區才自動播放。
+// FILM 不會使用這個組件。
+const LazyGalleryVideo = ({ src, className }) => {
   const videoRef = useRef(null);
-  const [isNearViewport, setIsNearViewport] = useState(false);
-  const [isActivated, setIsActivated] = useState(false);
-  const shouldLoadMetadata = isNearViewport || isActivated;
+  const playbackStartedAtRef = useRef(0);
+  const pauseTimerRef = useRef(null);
+  const [isPreloadNear, setIsPreloadNear] = useState(false);
+  const [isPlaybackVisible, setIsPlaybackVisible] = useState(false);
+  const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
+  const [keepSourceAlive, setKeepSourceAlive] = useState(false);
+  const sourceAttached = isPreloadNear || isPlaybackVisible || keepSourceAlive;
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || typeof IntersectionObserver === 'undefined') return;
+    if (!video) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsPreloadNear(true);
+      setIsPlaybackVisible(true);
+      return;
+    }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsNearViewport(entry.isIntersecting),
-      { rootMargin: '0px 100%' }
+    const preloadObserver = new IntersectionObserver(
+      ([entry]) => setIsPreloadNear(entry.isIntersecting),
+      { rootMargin: VIDEO_PRELOAD_MARGIN }
     );
-    observer.observe(video);
-    return () => observer.disconnect();
+    const playbackObserver = new IntersectionObserver(
+      ([entry]) => setIsPlaybackVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    preloadObserver.observe(video);
+    playbackObserver.observe(video);
+    return () => {
+      preloadObserver.disconnect();
+      playbackObserver.disconnect();
+    };
   }, []);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!isActivated || !video) return;
+    if (!video || sourceAttached) return;
+
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    playbackStartedAtRef.current = 0;
+    setHasStartedPlayback(false);
+  }, [sourceAttached]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isPlaybackVisible) return;
+
+    if (pauseTimerRef.current) {
+      window.clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
+    setKeepSourceAlive(true);
 
     const play = () => video.play().catch(() => undefined);
     if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
@@ -59,19 +96,50 @@ const LazyGalleryVideo = ({ src, poster, className }) => {
     }
     video.addEventListener('canplay', play, { once: true });
     return () => video.removeEventListener('canplay', play);
-  }, [isActivated, shouldLoadMetadata]);
+  }, [isPlaybackVisible]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || isPlaybackVisible || !hasStartedPlayback) return;
+
+    const elapsed = Date.now() - playbackStartedAtRef.current;
+    const remaining = Math.max(0, MINIMUM_PLAYBACK_MS - elapsed);
+    const pause = () => {
+      video.pause();
+      playbackStartedAtRef.current = 0;
+      setHasStartedPlayback(false);
+      setKeepSourceAlive(false);
+    };
+
+    if (remaining === 0) {
+      pause();
+      return;
+    }
+    setKeepSourceAlive(true);
+    pauseTimerRef.current = window.setTimeout(pause, remaining);
+    return () => {
+      if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    };
+  }, [hasStartedPlayback, isPlaybackVisible]);
+
+  const handlePlaying = () => {
+    if (playbackStartedAtRef.current) return;
+    playbackStartedAtRef.current = Date.now();
+    setHasStartedPlayback(true);
+  };
 
   return (
     <video
       ref={videoRef}
-      src={shouldLoadMetadata ? src : undefined}
-      poster={poster}
+      src={sourceAttached ? src : undefined}
       className={className}
+      autoPlay
       muted
       loop
       playsInline
-      preload={shouldLoadMetadata ? 'metadata' : 'none'}
-      onClick={() => setIsActivated(true)}
+      preload={sourceAttached ? (isPlaybackVisible ? 'auto' : 'metadata') : 'none'}
+      onPlaying={handlePlaying}
     />
   );
 };
@@ -300,7 +368,7 @@ const ViewProjectDetail = ({ project, onBack }) => {
               <div key={i} className={`h-[70vh] ${naturalFit ? '' : 'aspect-[9/16] '}bg-[#111] flex-shrink-0 flex items-center justify-center border border-[#1a1a1a] shadow-2xl overflow-hidden`}>
                 {isVideo(src)
                   ? useDeferredGalleryVideo
-                    ? <LazyGalleryVideo src={src} poster={project.poster || project.thumb} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} />
+                    ? <LazyGalleryVideo src={src} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} />
                     : <video src={src} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} autoPlay muted loop playsInline />
                   : <img src={src} alt={`${project.title} ${i + 1}`} draggable={false} className={naturalFit ? 'h-full w-auto block' : 'w-full h-full object-cover'} />}
               </div>
