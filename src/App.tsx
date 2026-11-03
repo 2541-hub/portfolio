@@ -280,7 +280,7 @@ const ViewProjectDetail = ({ project, onBack }) => {
         {!hero
           ? <span className="text-[#333] font-mono text-sm">VIDEO_AREA</span>
           : isVideo(hero)
-            ? <video src={hero} poster={project.poster} className="w-full h-full object-cover" controls playsInline />
+            ? <video src={hero} poster={project.poster} className="w-full h-full object-cover" controls controlsList={project.category === 'FILM' ? 'nodownload' : undefined} playsInline />
             : <img src={hero} alt={project.title} className="w-full h-full object-cover" />}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
