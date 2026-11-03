@@ -40,6 +40,15 @@ const slug = (text: string) =>
   text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'work';
 
 // 冇 id 嘅系列補一個，上傳圖片時用嚟分資料夾
+// 將 list 入面第 from 項搬去第 to 項，超出範圍就唔郁
+function move<T>(list: T[], from: number, to: number): T[] {
+  if (to < 0 || to >= list.length) return list;
+  const next = list.slice();
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 function ensureIds(content: Content): Content {
   content.projects.forEach((p, i) => {
     if (!p.id) p.id = `${slug(p.title)}-${i}`;
@@ -113,6 +122,7 @@ const button: CSSProperties = {
   fontFamily: 'inherit',
 };
 const ghost: CSSProperties = { ...button, background: 'transparent', color: '#aaa', border: '1px solid #333' };
+const mini: CSSProperties = { ...ghost, padding: '4px 10px', fontSize: 12 };
 const label: CSSProperties = { display: 'block', color: '#888', fontSize: 12, marginBottom: 4 };
 
 const ASPECTS: [string, number][] = [
@@ -460,6 +470,18 @@ export default function Admin() {
     setBusy(false);
   };
 
+  // 同一個分類入面，將系列向前或者向後搬一格（唔會影響其他分類嘅次序）
+  const moveProject = (index: number, dir: -1 | 1) =>
+    edit((c) => {
+      const category = c.projects[index].category;
+      let target = index + dir;
+      while (target >= 0 && target < c.projects.length && c.projects[target].category !== category) target += dir;
+      if (target < 0 || target >= c.projects.length) return;
+      const temp = c.projects[index];
+      c.projects[index] = c.projects[target];
+      c.projects[target] = temp;
+    });
+
   const addProject = () =>
     edit((c) => {
       c.projects.push({
@@ -561,7 +583,33 @@ export default function Admin() {
               <h2 style={{ fontSize: 16, fontWeight: 400, marginTop: 0 }}>分類名稱</h2>
               {content.categories.map((cat, i) => (
                 <div key={cat.id}>
-                  <label style={label}>{cat.id}</label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <label style={{ ...label, marginBottom: 0 }}>{cat.id}</label>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        style={mini}
+                        title="向上移"
+                        onClick={() =>
+                          edit((c) => {
+                            c.categories = move(c.categories, i, i - 1);
+                          })
+                        }
+                      >
+                        ↑
+                      </button>
+                      <button
+                        style={mini}
+                        title="向下移"
+                        onClick={() =>
+                          edit((c) => {
+                            c.categories = move(c.categories, i, i + 1);
+                          })
+                        }
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  </div>
                   <input
                     style={input}
                     value={cat.name}
@@ -690,10 +738,20 @@ export default function Admin() {
             {content.projects.map((p, i) => (
               <div key={p.id || i} style={card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 400, margin: 0 }}>{p.title || '（未有標題）'}</h2>
-                  <button style={ghost} onClick={() => removeProject(i)}>
-                    刪除系列
-                  </button>
+                  <h2 style={{ fontSize: 16, fontWeight: 400, margin: 0 }}>
+                    {p.title || '（未有標題）'} <span style={{ color: '#666', fontSize: 12 }}>{p.category}</span>
+                  </h2>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button style={mini} title="向前移" onClick={() => moveProject(i, -1)}>
+                      ↑
+                    </button>
+                    <button style={mini} title="向後移" onClick={() => moveProject(i, 1)}>
+                      ↓
+                    </button>
+                    <button style={ghost} onClick={() => removeProject(i)}>
+                      刪除系列
+                    </button>
+                  </div>
                 </div>
 
                 <label style={label}>標題</label>
@@ -763,6 +821,23 @@ export default function Admin() {
                       <option value="natural">完整顯示（唔裁切）</option>
                     </select>
                   </div>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <label style={label}>排版模板</label>
+                    <select
+                      style={input}
+                      value={(p.layout as string) || ''}
+                      onChange={(e) =>
+                        edit((c) => {
+                          if (e.target.value) c.projects[i].layout = e.target.value;
+                          else delete c.projects[i].layout;
+                        })
+                      }
+                    >
+                      <option value="">跟分類預設</option>
+                      <option value="horizontal">橫向捲動</option>
+                      <option value="vertical">直向：大畫面加格仔</option>
+                    </select>
+                  </div>
                 </div>
 
                 <label style={label}>封面</label>
@@ -793,17 +868,41 @@ export default function Admin() {
                       ) : (
                         <img src={src} alt="" style={{ width: 120, height: 120, objectFit: 'cover', background: '#000' }} />
                       )}
-                      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                      <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                         <button
-                          style={{ ...ghost, padding: '4px 6px', fontSize: 12 }}
+                          style={mini}
+                          title="向前移"
                           onClick={() =>
                             edit((c) => {
-                              c.projects[i].thumb = src;
+                              c.projects[i].media = move(c.projects[i].media || [], m, m - 1);
                             })
                           }
                         >
-                          設為封面
+                          ←
                         </button>
+                        <button
+                          style={mini}
+                          title="向後移"
+                          onClick={() =>
+                            edit((c) => {
+                              c.projects[i].media = move(c.projects[i].media || [], m, m + 1);
+                            })
+                          }
+                        >
+                          →
+                        </button>
+                        {!isVideo(src) && (
+                          <button
+                            style={{ ...ghost, padding: '4px 6px', fontSize: 12 }}
+                            onClick={() =>
+                              edit((c) => {
+                                c.projects[i].thumb = src;
+                              })
+                            }
+                          >
+                            設為封面
+                          </button>
+                        )}
                         <button
                           style={{ ...ghost, padding: '4px 6px', fontSize: 12 }}
                           onClick={() =>
