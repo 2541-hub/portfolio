@@ -20,6 +20,15 @@ type Content = { categories: Category[]; projects: Project[]; [key: string]: unk
 
 const isVideo = (src: string) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(src);
 
+// 上傳畫質：標準／高／原圖。上傳同裁切嘅函數喺 component 外面，所以用一個變數記住而家揀咗邊個。
+type Quality = 'standard' | 'high' | 'original';
+const QUALITY: Record<Quality, { maxSide: number; q: number } | null> = {
+  standard: { maxSide: 2400, q: 0.85 },
+  high: { maxSide: 3200, q: 0.92 },
+  original: null,
+};
+let currentQuality: Quality = 'high';
+
 // ARCHIVE 頁嘅文字：key 要同 App.tsx 讀取嘅名一樣，預設值就係而家網站顯示嘅字
 const ABOUT_DEFAULTS: Record<string, string> = {
   topLabel: '[ INTERACTIVE_TOPOLOGY_PLACEHOLDER ]',
@@ -56,19 +65,22 @@ function ensureIds(content: Content): Content {
   return content;
 }
 
-// 上傳前自動縮細：最長邊 2400px，轉成 webp。gif、svg、影片原樣上傳。
+// 上傳前按「上傳畫質」縮細並轉成 webp。揀「原圖」、gif、svg、影片都原樣上傳。
 async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+  const preset = QUALITY[currentQuality];
+  // 裁切視窗輸出嘅圖已經按畫質處理過，唔使再壓一次
+  if (file.name.startsWith('cropped.')) return file;
+  if (!preset || !file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
     return file;
   }
   try {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, preset.maxSide / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);
     canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85));
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', preset.q));
     if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file;
     return new File([blob], file.name.replace(/\.\w+$/, '') + '.webp', { type: 'image/webp' });
   } catch {
@@ -185,13 +197,13 @@ function CropDialog({
     if (!img) return;
     const sw = stageW / scale;
     const sh = stageH / scale;
-    const outW = Math.min(2000, Math.round(sw));
+    const outW = Math.min(QUALITY[currentQuality]?.maxSide ?? 4000, Math.round(sw));
     const outH = Math.round((outW * stageH) / stageW);
     const canvas = document.createElement('canvas');
     canvas.width = outW;
     canvas.height = outH;
     canvas.getContext('2d')!.drawImage(img, c.x - sw / 2, c.y - sh / 2, sw, sh, 0, 0, outW, outH);
-    const webp: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9));
+    const webp: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', QUALITY[currentQuality]?.q ?? 0.95));
     if (webp && webp.type === 'image/webp') {
       onDone(new File([webp], 'cropped.webp', { type: 'image/webp' }));
       return;
@@ -306,6 +318,8 @@ export default function Admin() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [quality, setQuality] = useState<Quality>('high');
+  currentQuality = quality;
   const [cropJob, setCropJob] = useState<{ file: File; aspect: number; resolve: (f: File | null) => void } | null>(null);
 
   // 彈出裁切視窗，回傳裁好嘅圖；取消就回傳 null。gif、svg 唔裁切。
@@ -559,6 +573,20 @@ export default function Admin() {
           {session.user.email}
           {content && !fromCloud && '　目前顯示嘅係 works.json 嘅內容，儲存之後就會改用雲端版本。'}
         </p>
+
+        <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <label style={{ ...label, marginBottom: 0 }}>上傳畫質</label>
+          <select
+            style={{ ...input, width: 'auto', marginBottom: 0 }}
+            value={quality}
+            onChange={(e) => setQuality(e.target.value as Quality)}
+          >
+            <option value="high">高（最長邊 3200px，畫質 92%）</option>
+            <option value="standard">標準（最長邊 2400px，畫質 85%）</option>
+            <option value="original">原圖（唔壓縮）</option>
+          </select>
+          <span style={{ color: '#777', fontSize: 12 }}>影片同 gif 唔會被壓縮</span>
+        </div>
 
         {cropJob && (
           <CropDialog
