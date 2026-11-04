@@ -422,6 +422,7 @@ const ViewProjectDetail = ({ project, onBack }) => {
 };
 
 const ViewIdentityArchive = () => {
+  const about: any = (works as any).about || {};
   const [highestZ, setHighestZ] = useState(10);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [scatteredFragments, setScatteredFragments] = useState([]);
@@ -476,21 +477,21 @@ const ViewIdentityArchive = () => {
              setMousePos({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 }); 
            }}>
         <div className="absolute inset-0 opacity-20 transition-[background] duration-300 ease-out" style={{ background: `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(255,255,255,0.1) 0%, transparent 50%)` }} />
-        <div className="font-mono text-[10px] text-[#333] tracking-[0.5em] group-hover:text-[#666] transition-colors duration-1000 z-10 relative">[ INTERACTIVE_TOPOLOGY_PLACEHOLDER ]</div>
+        <div className="font-mono text-[10px] text-[#333] tracking-[0.5em] group-hover:text-[#666] transition-colors duration-1000 z-10 relative">{about.topLabel ?? '[ INTERACTIVE_TOPOLOGY_PLACEHOLDER ]'}</div>
       </div>
       
       <div className="w-full h-[50vh] px-8 md:px-24 py-16 border-b border-[#1a1a1a] bg-[#0d0d0d] flex flex-col justify-center">
         <div className="max-w-4xl">
-          <h1 className="text-3xl md:text-5xl font-light tracking-[0.2em] text-[#eee] mb-8">DIGITAL PRODUCER</h1>
+          <h1 className="text-3xl md:text-5xl font-light tracking-[0.2em] text-[#eee] mb-8">{about.heading ?? 'DIGITAL PRODUCER'}</h1>
           <div className="font-mono text-xs md:text-sm text-[#888] leading-loose tracking-widest space-y-4">
-            <p>SYSTEM ARCHITECT / VISUAL DIRECTOR / INTERACTION DESIGNER</p>
-            <p className="text-[#555]">BASED IN STRUCTURAL LOGIC. OPERATING ACROSS MEDIUMS. REDEFINING BOUNDARIES THROUGH CONTROLLED CHAOS.</p>
+            <p>{about.subtitle ?? 'SYSTEM ARCHITECT / VISUAL DIRECTOR / INTERACTION DESIGNER'}</p>
+            <p className="text-[#555]">{about.bio ?? 'BASED IN STRUCTURAL LOGIC. OPERATING ACROSS MEDIUMS. REDEFINING BOUNDARIES THROUGH CONTROLLED CHAOS.'}</p>
           </div>
         </div>
       </div>
 
       <div className="w-full h-[250vh] relative bg-[#0a0a0a] overflow-hidden">
-        <div className="absolute top-8 left-8 font-mono text-[10px] text-[#444] tracking-widest select-none pointer-events-none z-0 uppercase">[ Deconstructed Memory Bank ]</div>
+        <div className="absolute top-8 left-8 font-mono text-[10px] text-[#444] tracking-widest select-none pointer-events-none z-0 uppercase">{about.memoryLabel ?? '[ Deconstructed Memory Bank ]'}</div>
         {scatteredFragments.map((frag) => (
           <DraggableFragment
             key={frag.id}
@@ -571,9 +572,7 @@ export default function PortfolioApp() {
       </div>
       <div className="fixed bottom-8 left-8 z-50 pointer-events-none mix-blend-difference">
         <div className="font-mono text-[8px] md:text-[10px] text-[#666] tracking-[0.2em] leading-relaxed">
-          DIGITAL PRODUCER PORTFOLIO <br/>
-          ITERATION_01 ©2026 <br/>
-          SYS.CONTAINER_ACTIVE
+          {String((works as any).about?.footer ?? 'DIGITAL PRODUCER PORTFOLIO\nITERATION_01 ©2026\nSYS.CONTAINER_ACTIVE').split('\n').map((line: string, i: number) => (<span key={i}>{line}<br /></span>))}
         </div>
       </div>
       {/* 胶片噪点暗流：不可交互的全局叠加层，抹去纯数字网页的塑料冰冷感 */}

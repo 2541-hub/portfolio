@@ -36,6 +36,7 @@ const ABOUT_DEFAULTS: Record<string, string> = {
   subtitle: 'SYSTEM ARCHITECT / VISUAL DIRECTOR / INTERACTION DESIGNER',
   bio: 'BASED IN STRUCTURAL LOGIC. OPERATING ACROSS MEDIUMS. REDEFINING BOUNDARIES THROUGH CONTROLLED CHAOS.',
   memoryLabel: '[ Deconstructed Memory Bank ]',
+  footer: 'DIGITAL PRODUCER PORTFOLIO\nITERATION_01 ©2026\nSYS.CONTAINER_ACTIVE',
 };
 const ABOUT_FIELDS: [string, string, boolean][] = [
   ['topLabel', '頂部區塊文字', false],
@@ -43,6 +44,7 @@ const ABOUT_FIELDS: [string, string, boolean][] = [
   ['subtitle', '副標題', false],
   ['bio', '介紹文字', true],
   ['memoryLabel', '碎片區標題', false],
+  ['footer', '左下角文字（一行一句）', true],
 ];
 
 const slug = (text: string) =>
